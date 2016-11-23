@@ -1,8 +1,8 @@
 USE IberoTrem;
 
 -- Povoamento da tabela "Cliente"
-INSERT INTO 
-	(CC,Data_de_Nascimento, Nome, Telefone, Email)
+INSERT INTO Cliente
+	(CC, Data_de_Nascimento, Nome, Telefone, Email)
 	VALUES 
 		('76452899', 1967-11-12, 'João Bragança', '914934870', 'joao_67_bra@iol.pt'),
 		('83509478', 1974-09-23, 'Fernanda Castro', '929896439', 'nanda123@gmail.com'),
@@ -11,7 +11,7 @@ INSERT INTO
 		('55787890A', 1960-11-13, 'Diego Murillo', '917483436', 'diego_murillo@gmail.pt');
 
 -- Povoamento da tabela "Reserva"
-INSERT INTO Posicao
+INSERT INTO Reserva
 	(Id_reserva, Preço, Lugar, Data, CC, Id_viagem)
 	VALUES 
 		(34, 60.0, 1, 2016-11-01,'76452899', 1),
@@ -29,7 +29,7 @@ INSERT INTO Comboio
 		(2, 10);
 
 
--- Povoamento da tabela "Posicao"
+-- Povoamento da tabela "Estação"
 INSERT INTO Estação
 	(Id_estação, Nome, Cidade)
 	VALUES 
