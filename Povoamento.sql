@@ -53,25 +53,59 @@ INSERT INTO Estação
 		(4, 'Oriente', 'Lisboa');
 
 
+
+-- Hora de partida é sempre superior à hora de chegada
+
+DELIMITER $$ 
+
+CREATE TRIGGER check_horario
+     BEFORE INSERT ON Viagem FOR EACH ROW
+     BEGIN
+	IF (NEW.Hora_chegada < NEW.Hora_partida)
+          THEN
+               SIGNAL SQLSTATE '45000'
+                    SET MESSAGE_TEXT = 'Hora de chegada inválida';
+          END IF;
+     END;
+$$
+
+-- Estação origem != Estação destino
+
+DELIMITER $$
+CREATE TRIGGER check_estacao
+	BEFORE INSERT ON Viagem
+    FOR EACH ROW
+    BEGIN
+		IF (NEW.Id_estação_origem = NEW.Id_estação_destino)
+        THEN
+			SIGNAL SQLSTATE '45000'
+				SET MESSAGE_TEXT = 'Estação de destino não pode ser igual à estação de partida';
+		END IF;
+	END;
+$$
+
 -- Povoamento da tabela "Viagem"
 INSERT INTO Viagem
 	(Id_viagem, Hora_partida, Hora_chegada, Preço, Id_estação_origem, Id_comboio, Id_estação_destino)
 	VALUES 
-		(1, '07:04', '23:12', 60.0, 1, 1, 3),
-		(2, '08:34', '00:02', 83.5, 4, 2, 2),
-		(3, '08:04', '00:12', 60.0, 3, 1, 1),
-		(4, '06:47', '23:17', 83.5, 2, 2, 4);
+		(1, '07:04:00', '23:12:00', 60.0, 1, 1, 3),
+		(2, '07:34:00', '23:02:00', 83.5, 4, 2, 2),
+		(3, '06:04:00', '22:12:00', 60.0, 3, 1, 1),
+		(4, '06:47:00', '22:17:00', 83.5, 2, 2, 4);
 
+
+DROP TRIGGER check_estacao;
+DROP TRIGGER check_horario;
 
 -- Povoamento da tabela "Reserva"
 INSERT INTO Reserva
-	(Id_reserva, Preço, Lugar, Data, CC, Id_viagem)
+	(Id_reserva, Lugar, Data, CC, Id_viagem)
 	VALUES 
-		(34, 60.0, 1, '2016-11-01','76452899', 1),
-		(35, 45.0, 2, '2016-11-01', '86104398', 1),
-		(40, 83.5, 1, '2016-11-05', '83509478', 2),
-		(58, 60.0, 3, '2016-11-07', '54365476', 3),
-		(67, 83.5, 7, '2016-11-10', '55787890A', 4);
+		(1, 1, '2016-11-01','76452899', 1),
+		(2, 2, '2016-11-01', '86104398', 1),
+		(3, 1, '2016-11-05', '83509478', 2),
+		(4, 3,'2016-11-07', '54365476', 3),
+		(5, 7, '2016-11-10', '55787890A', 4);
 
 
 
