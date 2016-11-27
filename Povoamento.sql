@@ -230,6 +230,41 @@ begin
 end
 %%
 
+DROP PROCEDURE addComboio;
+DELIMITER $$
+CREATE PROCEDURE addComboio (IN lugares INT)
+BEGIN
+	-- Declaração de um handler para tratamento de erros.
+	DECLARE IdComb INT DEFAULT (SELECT COUNT(*) FROM Comboio) + 1;
+    DECLARE i INT DEFAULT 1;
+    DECLARE ErroTransacao BOOL DEFAULT 0;
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET ErroTransacao = 1;
+
+	-- Início da transação
+	START TRANSACTION;
+    INSERT INTO Comboio
+		(Id_comboio, Nr_lugares)
+        VALUES
+        	(IdComb, lugares);
+	WHILE (i <= lugares) DO
+		INSERT INTO Lugares
+			(Lugar, Comboio)
+			VALUES
+    		(i, IdComb);
+		SET i = i + 1;
+	END WHILE;
+	-- Verificação da ocorrência de um erro.
+    IF ErroTransacao THEN
+		-- Desfazer as operações realizadas.
+        ROLLBACK;
+    ELSE
+		-- Confirmar as operações realizadas.
+        COMMIT;
+    END IF;
+END
+$$
+
+
 -- teste ao gatilho checkreserva
 insert into Reserva (Id_reserva, Lugar, Data, CC, Id_viagem)
 	values (6, 1, curdate(),'76452899', 1);
