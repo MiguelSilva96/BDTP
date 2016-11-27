@@ -93,11 +93,7 @@ INSERT INTO Viagem
 		(3, '06:04:00', '22:12:00', 60.0, 3, 1, 1),
 		(4, '06:47:00', '22:17:00', 83.5, 2, 2, 4);
 
-
-DROP TRIGGER check_estacao;
-DROP TRIGGER check_horario;
-
--- Povoamento da tabela "Reserva"
+-- Povoamento da tabela "Reserva" com reservas antigas
 INSERT INTO Reserva
 	(Id_reserva, Lugar, Data, CC, Id_viagem)
 	VALUES 
@@ -106,7 +102,23 @@ INSERT INTO Reserva
 		(3, 1, '2016-11-05', '83509478', 2),
 		(4, 3,'2016-11-07', '54365476', 3),
 		(5, 7, '2016-11-10', '55787890A', 4);
+        
+-- gatilho que garante que nao sao efetuadas reservas para o dia atual ou anteriores
+DELIMITER $$
+create trigger check_reserva
+	before insert on Reserva
+    for each row
+    begin
+		if (datediff(new.data,curdate()) < 1)
+        then
+			signal sqlstate '45000'
+				set message_text = 'Reserva não pode ser efetuada';
+		end if;
+	end;
+$$
 
-
-
+-- teste ao gatilho
+insert into Reserva
+	(Id_reserva, Lugar, Data, CC, Id_viagem)
+	values (6, 1, curdate(),'76452899', 1);
 
