@@ -164,6 +164,7 @@ BEGIN
 	START TRANSACTION;
     INSERT INTO Reserva
 		(Id_reserva, Lugar, Data, CC, Id_viagem)
+		VALUES
 			(SELECT COUNT(*) FROM Reserva + 1, lugar, dia, cc, viagem);
 		-- Verificação da ocorrência de um erro.
     IF ErroTransacao THEN
