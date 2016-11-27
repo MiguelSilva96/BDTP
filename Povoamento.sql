@@ -60,12 +60,30 @@ INSERT INTO Estação
         (10, 'Mirandela', 'Mirandela'),
         (11, 'Ourense', 'Ourense'),
         (12, 'Duas Igrejas', 'Miranda Douro');
+        
+-- Povoamento da tabela "Viagem"
+INSERT INTO Viagem
+	(Id_viagem, Hora_partida, Hora_chegada, Preço, Id_estação_origem, Id_comboio, Id_estação_destino)
+	VALUES 
+		(1, '07:04:00', '23:12:00', 60.0, 1, 1, 3),
+		(2, '07:34:00', '23:02:00', 83.5, 4, 2, 2),
+		(3, '06:04:00', '22:12:00', 60.0, 3, 1, 1),
+		(4, '06:47:00', '22:17:00', 83.5, 2, 2, 4);
 
+-- Povoamento da tabela "Reserva" com reservas antigas
+INSERT INTO Reserva
+	(Id_reserva, Lugar, Data, CC, Id_viagem)
+	VALUES 
+		(1, 1, '2016-11-01','76452899', 1),
+		(2, 2, '2016-11-01', '86104398', 1),
+		(3, 1, '2016-11-05', '83509478', 2),
+		(4, 3,'2016-11-07', '54365476', 3),
+		(5, 7, '2016-11-10', '55787890A', 4);
+
+-- TRIGGERS
 
 -- Hora de partida é sempre superior à hora de chegada
-
 DELIMITER $$ 
-
 CREATE TRIGGER check_horario
      BEFORE INSERT ON Viagem FOR EACH ROW
      BEGIN
@@ -78,7 +96,6 @@ CREATE TRIGGER check_horario
 $$
 
 -- Estação origem != Estação destino
-
 DELIMITER $$
 CREATE TRIGGER check_estacao
 	BEFORE INSERT ON Viagem
@@ -92,6 +109,21 @@ CREATE TRIGGER check_estacao
 	END;
 $$
 
+-- trigger que garante que nao sao efetuadas reservas para o dia atual ou anteriores
+DELIMITER $$
+create trigger check_reserva
+	before insert on Reserva
+    for each row
+    begin
+		if (datediff(new.data,curdate()) < 1)
+        then
+			signal sqlstate '45000'
+				set message_text = 'Reserva não pode ser efetuada';
+		end if;
+	end;
+$$
+
+-- PROCEDURES AND FUNCTIONS
 
 DROP PROCEDURE LugaresLivres;
 DELIMITER $$
@@ -124,49 +156,19 @@ END;
 $$
 
 
--- Povoamento da tabela "Viagem"
-INSERT INTO Viagem
-	(Id_viagem, Hora_partida, Hora_chegada, Preço, Id_estação_origem, Id_comboio, Id_estação_destino)
-	VALUES 
-		(1, '07:04:00', '23:12:00', 60.0, 1, 1, 3),
-		(2, '07:34:00', '23:02:00', 83.5, 4, 2, 2),
-		(3, '06:04:00', '22:12:00', 60.0, 3, 1, 1),
-		(4, '06:47:00', '22:17:00', 83.5, 2, 2, 4);
-
--- Povoamento da tabela "Reserva" com reservas antigas
-INSERT INTO Reserva
-	(Id_reserva, Lugar, Data, CC, Id_viagem)
-	VALUES 
-		(1, 1, '2016-11-01','76452899', 1),
-		(2, 2, '2016-11-01', '86104398', 1),
-		(3, 1, '2016-11-05', '83509478', 2),
-		(4, 3,'2016-11-07', '54365476', 3),
-		(5, 7, '2016-11-10', '55787890A', 4);
-        
-        
-DROP PROCEDURE addReserva;
+DROP PROCEDURE addCliente;
 DELIMITER $$
-CREATE PROCEDURE addReserva(IN nome VARCHAR(32), IN cc VARCHAR(9), IN dob DATE, IN tel VARCHAR(9), IN ee VARCHAR(32), IN viagem INT, IN dia DATE, IN lugar INT)
+CREATE PROCEDURE addCliente(IN nome VARCHAR(32), IN cc VARCHAR(9), IN dob DATE, IN tel VARCHAR(9), IN ee VARCHAR(32))
 BEGIN
-	IF NOT EXISTS
-		(SELECT CC FROM Cliente where cc = CC.Cliente)
-	BEGIN
-    START TRANSACTION;
-	INSERT INTO Cliente
-		(CC, Data_de_Nascimento, Nome, Telefone, Email)
-		VALUES
-			(cc, dob, nome, tel, ee);
-    END
-    -- Declaraçãoo de um handler para tratamento de erros.
+	-- Declaração de um handler para tratamento de erros.
     DECLARE ErroTransacao BOOL DEFAULT 0;
     DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET ErroTransacao = 1;
 	-- Início da transação
 	START TRANSACTION;
-    INSERT INTO Reserva
-		(Id_reserva, Lugar, Data, CC, Id_viagem)
-		VALUES
-			(SELECT COUNT(*) FROM Reserva + 1, lugar, dia, cc, viagem);
-		-- Verificação da ocorrência de um erro.
+    INSERT INTO Cliente
+		(CC, Data_de_Nascimento, Nome, Telefone, Email)
+        VALUES (cc, dob, nome, tel, ee);
+	-- Verificação da ocorrência de um erro.
     IF ErroTransacao THEN
 		-- Desfazer as operações realizadas.
         ROLLBACK;
@@ -177,25 +179,65 @@ BEGIN
 END
 $$
 
+DROP PROCEDURE addReserva;
+DELIMITER %%
+create procedure addReserva
+	(IN nome VARCHAR(32), IN cc VARCHAR(9), IN dob DATE, IN tel VARCHAR(9), IN ee VARCHAR(32), IN viagem INT, IN dia DATE, IN lugar INT)
+begin
+	-- Declaraçãoo de um handler para tratamento de erros.
+    declare ErroTransacao bool default false;
+    declare continue handler for sqlexception set ErroTransacao = true;
+	-- Início da transação
+	start transaction;
+	if (not exists(select CC from Cliente where cc = CC.Cliente)) then
+	insert into Cliente (CC, Data_de_Nascimento, Nome, Telefone, Email)
+		values
+			(cc, dob, nome, tel, ee);
+	end if;
+    insert into Reserva
+		(Id_reserva, Lugar, Data, CC, Id_viagem)
+		values
+			((select count(*) from Reserva) + 1, lugar, dia, cc, viagem);
+		-- Verificação da ocorrência de um erro.
+    if ErroTransacao then
+		rollback;
+    else
+		commit;
+    end if;
+end
+%%
+
+DROP PROCEDURE addViagem;
+DELIMITER %%
+create procedure addViagem
+	(IN hora_chegada TIME, hora_partida TIME, preço FLOAT, origem INT, destino INT, comboio INT)
+begin
+	-- Declaraçãoo de um handler para tratamento de erros.
+    declare ErroTransacao bool default false;
+    declare continue handler for sqlexception set ErroTransacao = true;
+	-- Início da transação
+	start transaction;
+    insert into Viagem
+		(Id_viagem, hora_partida, hora_chegada, preço, id_estação_origem, id_comboio, id_estação_destino)
+		values
+			((select count(*) from Viagem) + 1, hora_partida, hora_chegada, preço, origem, comboio, destino);
+		-- Verificação da ocorrência de um erro.
+    if ErroTransacao then
+		rollback;
+    else
+		commit;
+    end if;
+end
+%%
+
+-- teste ao gatilho checkreserva
+insert into Reserva (Id_reserva, Lugar, Data, CC, Id_viagem)
+	values (6, 1, curdate(),'76452899', 1);
+
+-- VIEWS
+drop view reservapreço;
 CREATE VIEW ReservaPreço
 AS SELECT *, ROUND(calculaPreço(id_viagem, cc), 2) as Price FROM Reserva;
-        
--- gatilho que garante que nao sao efetuadas reservas para o dia atual ou anteriores
-DELIMITER $$
-create trigger check_reserva
-	before insert on Reserva
-    for each row
-    begin
-		if (datediff(new.data,curdate()) < 1)
-        then
-			signal sqlstate '45000'
-				set message_text = 'Reserva não pode ser efetuada';
-		end if;
-	end;
-$$
 
--- teste ao gatilho
-insert into Reserva
-	(Id_reserva, Lugar, Data, CC, Id_viagem)
-	values (6, 1, curdate(),'76452899', 1);
+
 
