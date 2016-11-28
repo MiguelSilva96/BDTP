@@ -111,16 +111,16 @@ $$
 
 -- trigger que garante que nao sao efetuadas reservas para o dia atual ou anteriores
 DELIMITER $$
-create trigger check_reserva
-	before insert on Reserva
-    for each row
-    begin
-		if (datediff(new.data,curdate()) < 1)
-        then
+CREATE TRIGGER check_reserva
+	BEFORE INSERT ON Reserva
+    FOR EACH ROW
+    BEGIN
+		IF (datediff(new.data,curdate()) < 1)
+        THEN
 			signal sqlstate '45000'
-				set message_text = 'Reserva não pode ser efetuada';
-		end if;
-	end;
+				SET message_text = 'Reserva não pode ser efetuada';
+		END if;
+	END;
 $$
 
 -- PROCEDURES AND FUNCTIONS
@@ -130,10 +130,10 @@ DELIMITER $$
 CREATE PROCEDURE LugaresLivres (IN viagem INT, IN data Date)
 BEGIN
 	SELECT DISTINCT Lugares.Lugar FROM Lugares
-	LEFT JOIN (SELECT Reserva.Lugar from Reserva
-			   inner join Viagem on Viagem.Id_viagem = Reserva.Id_viagem
-				where Viagem.Id_viagem = viagem and Reserva.Data = data) AS T on Lugares.Lugar = T.Lugar where T.Lugar is NULL
-	ORDER BY Lugares.Lugar asc;
+	LEFT JOIN (SELECT Reserva.Lugar FROM Reserva
+			   INNER JOIN Viagem ON Viagem.Id_viagem = Reserva.Id_viagem
+				WHERE Viagem.Id_viagem = viagem AND Reserva.Data = data) AS T ON Lugares.Lugar = T.Lugar WHERE T.Lugar is NULL
+	ORDER BY Lugares.Lugar ASC;
 END
 $$
 
@@ -146,11 +146,11 @@ BEGIN
     DECLARE idade INT DEFAULT 0;
 	DECLARE RES FLOAT DEFAULT 0;
 
-		SELECT Preço INTO Price FROM Viagem where id_viagem = viagem;
-		SELECT TIMESTAMPDIFF(YEAR, Data_de_Nascimento, CURDATE()) INTO idade FROM Cliente where cc = cliente;
-	if (idade < 25) then SET RES = 0.75 * Price;
-    else SET RES = Price;
-	end if;
+		SELECT Preço INTO Price FROM Viagem WHERE id_viagem = viagem;
+		SELECT TIMESTAMPDIFF(YEAR, Data_de_Nascimento, CURDATE()) INTO idade FROM Cliente WHERE cc = cliente;
+	IF (idade < 25) THEN SET RES = 0.75 * Price;
+    ELSE SET RES = Price;
+	END if;
 	RETURN RES;
 END;
 $$
@@ -167,7 +167,8 @@ BEGIN
 	START TRANSACTION;
     INSERT INTO Cliente
 		(CC, Data_de_Nascimento, Nome, Telefone, Email)
-        VALUES (cc, dob, nome, tel, ee);
+        VALUES
+        	(cc, dob, nome, tel, ee);
 	-- Verificação da ocorrência de um erro.
     IF ErroTransacao THEN
 		-- Desfazer as operações realizadas.
@@ -183,51 +184,54 @@ DROP PROCEDURE addReserva;
 DELIMITER %%
 create procedure addReserva
 	(IN nome VARCHAR(32), IN cc VARCHAR(9), IN dob DATE, IN tel VARCHAR(9), IN ee VARCHAR(32), IN viagem INT, IN dia DATE, IN lugar INT)
-begin
+BEGIN
 	-- Declaraçãoo de um handler para tratamento de erros.
-    declare ErroTransacao bool default false;
-    declare continue handler for sqlexception set ErroTransacao = true;
+    DECLARE ErroTransacao bool DEFAULT false;
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET ErroTransacao = true;
 	-- Início da transação
-	start transaction;
-	if (not exists(select CC from Cliente where cc = CC.Cliente)) then
-	insert into Cliente (CC, Data_de_Nascimento, Nome, Telefone, Email)
-		values
+	START TRANSACTION;
+	IF (NOT EXISTS (SELECT CC FROM Cliente WHERE cc = CC.Cliente))
+	THEN
+	INSERT INTO Cliente (CC, Data_de_Nascimento, Nome, Telefone, Email)
+		VALUES
 			(cc, dob, nome, tel, ee);
-	end if;
-    insert into Reserva
+	END if;
+    INSERT INTO Reserva
 		(Id_reserva, Lugar, Data, CC, Id_viagem)
-		values
-			((select count(*) from Reserva) + 1, lugar, dia, cc, viagem);
+		VALUES
+			((SELECT COUNT(*) FROM Reserva) + 1, lugar, dia, cc, viagem);
 		-- Verificação da ocorrência de um erro.
-    if ErroTransacao then
-		rollback;
-    else
-		commit;
-    end if;
-end
+    IF ErroTransacao
+    THEN
+		ROLLBACK;
+    ELSE
+		COMMIT;
+    END IF;
+END
 %%
 
 DROP PROCEDURE addViagem;
 DELIMITER %%
-create procedure addViagem
+CREATE PROCEDURE addViagem
 	(IN hora_chegada TIME, hora_partida TIME, preço FLOAT, origem INT, destino INT, comboio INT)
-begin
+BEGIN
 	-- Declaraçãoo de um handler para tratamento de erros.
-    declare ErroTransacao bool default false;
-    declare continue handler for sqlexception set ErroTransacao = true;
+    DECLARE ErroTransacao BOOL DEFAULT false;
+    DECLARE CONTINUE HANDLER FOR SQLEXCEPTION SET ErroTransacao = true;
 	-- Início da transação
-	start transaction;
-    insert into Viagem
+	START TRANSACTION;
+    INSERT INTO Viagem
 		(Id_viagem, hora_partida, hora_chegada, preço, id_estação_origem, id_comboio, id_estação_destino)
-		values
-			((select count(*) from Viagem) + 1, hora_partida, hora_chegada, preço, origem, comboio, destino);
+		VALUES
+			((SELECT COUNT(*) FROM Viagem) + 1, hora_partida, hora_chegada, preço, origem, comboio, destino);
 		-- Verificação da ocorrência de um erro.
-    if ErroTransacao then
-		rollback;
-    else
-		commit;
-    end if;
-end
+    IF ErroTransacao
+    THEN
+		ROLLBACK;
+    ELSE
+		COMMIT;
+    END IF;
+END
 %%
 
 DROP PROCEDURE addComboio;
@@ -264,14 +268,12 @@ BEGIN
 END
 $$
 
--- teste ao gatilho checkreserva
-insert into Reserva (Id_reserva, Lugar, Data, CC, Id_viagem)
-	values (6, 1, curdate(),'76452899', 1);
 
 -- VIEWS
-drop view reservapreço;
 CREATE VIEW ReservaPreço
-AS SELECT *, ROUND(calculaPreço(id_viagem, cc), 2) as Price FROM Reserva;
+AS SELECT *, ROUND(calculaPreço(id_viagem, cc), 2) AS Price FROM Reserva;
 
 
-
+-- teste ao gatilho checkreserva
+INSERT INTO Reserva (Id_reserva, Lugar, Data, CC, Id_viagem)
+	VALUES (6, 1, curdate(),'76452899', 1);
