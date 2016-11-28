@@ -264,7 +264,6 @@ BEGIN
 END
 $$
 
-
 -- teste ao gatilho checkreserva
 insert into Reserva (Id_reserva, Lugar, Data, CC, Id_viagem)
 	values (6, 1, curdate(),'76452899', 1);

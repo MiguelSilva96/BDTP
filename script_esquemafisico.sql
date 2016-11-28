@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS `IberoTrem`.`Lugares` (
   CONSTRAINT `fk_Lugares_Comboio1`
     FOREIGN KEY (`Comboio`)
     REFERENCES `IberoTrem`.`Comboio` (`Id_comboio`)
-    ON DELETE NO ACTION
+    ON DELETE CASCADE
     ON UPDATE CASCADE)
 ENGINE = InnoDB;
 
