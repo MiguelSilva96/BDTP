@@ -123,6 +123,24 @@ CREATE TRIGGER check_reserva
 	END;
 $$
 
+
+
+-- CONSTRAINTS (À prova de UPDATES)
+
+-- Estação origem != Estação destino
+ALTER TABLE Viagem
+ADD CONSTRAINT check_viagem CHECK (id_estação_origem != Id_estação_destino);
+
+-- Hora de partida sempre superior à hora de chegada
+ALTER TABLE Viagem
+ADD CONSTRAINT check_horarioUp CHECK (Hora_chegada > Hora_partida);
+
+-- Garantia que não são efetuadas reservas para o dia atual ou anteriores
+ALTER TABLE Reserva
+ADD CONSTRAINT check_ReservaUp CHECK (Data - CURDATE() < 1);
+
+
+
 -- PROCEDURES AND FUNCTIONS
 
 DROP PROCEDURE LugaresLivres;
